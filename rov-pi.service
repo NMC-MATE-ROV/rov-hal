@@ -1,0 +1,13 @@
+[Unit]
+Description=My Custom Root Service
+After=network.target
+
+[Service]
+# Explicitly set root to ensure the root environment is loaded
+User=root
+Group=root
+ExecStart=/home/rov/bin/rov-pi
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
