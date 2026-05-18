@@ -1,9 +1,9 @@
+use anyhow::Result;
 use serde::Deserialize;
 use serde_json::Value;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::Mutex;
-use anyhow::Result;
 
 use crate::hal::devices::{blue_esc::BlueEsc, digital_input::DigitalInput, led::Led, servo::Servo};
 use rppal::gpio::Gpio;
@@ -14,7 +14,7 @@ pub struct RawDevice {
     pub device_type: String,
     pub pin: u8,
     pub pullup: Option<bool>,
-    pub input_inverted: Option<bool>
+    pub input_inverted: Option<bool>,
 }
 
 /// Device trait used by the runtime to dispatch commands to devices.
@@ -52,28 +52,26 @@ pub fn create_gpio_devices(devices: &Vec<RawDevice>, gpio: &Gpio) -> Result<Devi
                 let boxed: Box<dyn Device + Send + Sync> = Box::new(blue_esc);
                 map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
             }
-            "digital_input" => {
-                match d.pullup {
-                    Some(is_pullup) => {
-
-                        if is_pullup {
-                            let digital_input = DigitalInput::new(pin.into_input_pullup(), d.input_inverted);
-                            let boxed: Box<dyn Device + Send + Sync> = Box::new(digital_input);
-                            map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
-                        } else {
-                            let digital_input = DigitalInput::new(pin.into_input_pulldown(), d.input_inverted);
-                            let boxed: Box<dyn Device + Send + Sync> = Box::new(digital_input);
-                            map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
-                        }
-
-                    }
-                    None => {
-                        let digital_input = DigitalInput::new(pin.into_input(), d.input_inverted);
+            "digital_input" => match d.pullup {
+                Some(is_pullup) => {
+                    if is_pullup {
+                        let digital_input =
+                            DigitalInput::new(pin.into_input_pullup(), d.input_inverted);
+                        let boxed: Box<dyn Device + Send + Sync> = Box::new(digital_input);
+                        map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
+                    } else {
+                        let digital_input =
+                            DigitalInput::new(pin.into_input_pulldown(), d.input_inverted);
                         let boxed: Box<dyn Device + Send + Sync> = Box::new(digital_input);
                         map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
                     }
                 }
-            }
+                None => {
+                    let digital_input = DigitalInput::new(pin.into_input(), d.input_inverted);
+                    let boxed: Box<dyn Device + Send + Sync> = Box::new(digital_input);
+                    map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
+                }
+            },
             other => {
                 // unknown device type; skip or log
                 return Err(anyhow::anyhow!(format!("unknown device type: {}", other)));

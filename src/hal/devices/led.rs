@@ -5,16 +5,46 @@ use crate::hal::devices::device::Device;
 
 pub struct Led {
     pin: OutputPin,
+    is_on: bool,
     pwm_frequency: f64,
     pwm_duty_cycle: f64,
 }
 
 impl Led {
     pub fn new(pin: OutputPin) -> Led {
-        Led { pin, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
+        Led { pin, is_on: false, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
+    }
+
+    pub fn toggle(&mut self) -> Result<bool> {
+        if self.is_on {
+            self.set_pwm(0.0)?;
+            Ok(false)
+        } else {
+            self.set_pwm(1.0)?;
+            Ok(true)
+        }
+    }
+
+    pub fn turn_on(&mut self) -> Result<()> {
+        if !self.is_on {
+            self.set_pwm(1.0)?;
+        }
+        Ok(())
+    }
+
+    pub fn turn_off(&mut self) -> Result<()> {
+        if self.is_on {
+            self.set_pwm(0.0)?;
+        }
+        Ok(())
     }
 
     pub fn set_pwm_frequency(&mut self, frequency: f64, duty_cycle: f64) -> Result<()>{
+        if duty_cycle == 0.0 || frequency == 0.0 {
+            self.is_on = false;
+        } else {
+            self.is_on = true;
+        }
         self.pwm_duty_cycle = duty_cycle;
         self.pwm_frequency = frequency;
         self.pin.set_pwm_frequency(frequency, duty_cycle)?;
@@ -22,6 +52,11 @@ impl Led {
     }
 
     pub fn set_pwm(&mut self, duty_cycle: f64) -> Result<()>{
+        if duty_cycle == 0.0 {
+            self.is_on = false;
+        } else {
+            self.is_on = true;
+        }
         self.pwm_duty_cycle = duty_cycle;
         self.pwm_frequency = 490.0;
         self.pin.set_pwm_frequency(490.0, duty_cycle)?;
@@ -29,6 +64,7 @@ impl Led {
     }
 
     pub fn stop_pwm(&mut self)  -> Result<()>{
+        self.is_on = false;
         self.pwm_duty_cycle = 0.0;
         self.pwm_frequency = 0.0;
         self.pin.set_pwm_frequency(0.0, 0.0)?;
@@ -72,6 +108,18 @@ impl Device for Led {
                     self.stop_pwm().map_err(|e| format!("failed to stop pwm: {}", e))?;
                     Ok(serde_json::json!({"status":"stopped"}))
                 }
+            }
+            "turn_on" => {
+                self.turn_on().map_err(|e| format!("failed to turn on led: {}", e))?;
+                Ok(serde_json::json!({"status":"Ok", "is_on": true}))
+            }
+            "turn_off" => {
+                self.turn_off().map_err(|e| format!("failed to turn off led: {}", e))?;
+                Ok(serde_json::json!({"status":"Ok", "is_on": false}))
+            }
+            "toggle" => {
+                let is_on = self.toggle().map_err(|e| format!("failed to toggle led: {}", e))?;
+                Ok(serde_json::json!({"status":"Ok", "is_on": is_on}))
             }
             "get_state" => {
                 let frequency = &self.pwm_frequency;
