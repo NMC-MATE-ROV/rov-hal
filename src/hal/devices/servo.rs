@@ -22,13 +22,6 @@ impl Servo {
         self.pin.set_pwm_frequency(frequency, duty_cycle)?;
         Ok(())
     }
-
-    pub fn stop_pwm(&mut self)  -> Result<()>{
-        self.pwm_duty_cycle = 0.0;
-        self.pwm_frequency = 0.0;
-        self.pin.set_pwm_frequency(0.0, 0.0)?;
-        Ok(())
-    }
 }
 
 impl Device for Servo {

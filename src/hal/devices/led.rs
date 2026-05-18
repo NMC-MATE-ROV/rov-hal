@@ -5,14 +5,13 @@ use crate::hal::devices::device::Device;
 
 pub struct Led {
     pin: OutputPin,
-    is_on: bool,
     pwm_frequency: f64,
     pwm_duty_cycle: f64,
 }
 
 impl Led {
     pub fn new(pin: OutputPin) -> Led {
-        Led { pin, is_on: false, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
+        Led { pin, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
     }
 
     pub fn set_pwm_frequency(&mut self, frequency: f64, duty_cycle: f64) -> Result<()>{
