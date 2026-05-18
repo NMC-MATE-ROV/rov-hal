@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 use anyhow::Result;
 
-use crate::hal::devices::{led::Led, servo::Servo};
+use crate::hal::devices::{blue_esc::BlueEsc, led::Led, servo::Servo};
 use rppal::gpio::Gpio;
 
 #[derive(Deserialize)]
@@ -13,7 +13,6 @@ pub struct RawDevice {
     pub id: String,
     pub device_type: String,
     pub pin: u8,
-    pub is_input: Option<bool>,
 }
 
 /// Device trait used by the runtime to dispatch commands to devices.
@@ -44,6 +43,11 @@ pub fn create_gpio_devices(devices: &Vec<RawDevice>, gpio: &Gpio) -> Result<Devi
             "servo" => {
                 let servo = Servo::new(pin);
                 let boxed: Box<dyn Device + Send + Sync> = Box::new(servo);
+                map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
+            }
+            "blue_esc" => {
+                let blue_esc = BlueEsc::new(pin);
+                let boxed: Box<dyn Device + Send + Sync> = Box::new(blue_esc);
                 map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
             }
             other => {
