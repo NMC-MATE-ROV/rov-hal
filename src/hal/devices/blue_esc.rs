@@ -46,7 +46,7 @@ impl BlueEsc {
 impl Device for BlueEsc {
     fn handle(&mut self, cmd: &str, params: &Value) -> Result<Value, String> {
         match cmd {
-            "control" => {
+            "set_control" => {
                 println!("Got duty_cycle = {}", &params.get("duty_cycle").ok_or("duty_cycle missing")?);
                 let duty_cycle_percent = params.get("duty_cycle").and_then(|v| v.as_f64()).ok_or("missing or invalid 'duty_cycle'")?;
                 let enable = params.get("enable").and_then(|v| v.as_bool()).unwrap_or(true);

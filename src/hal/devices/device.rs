@@ -1,11 +1,11 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::hal::devices::{blue_esc::BlueEsc, digital_input::DigitalInput, led::Led, servo::Servo};
+use crate::hal::devices::{basic_pwm::BasicPWM, blue_esc::BlueEsc, digital_input::DigitalInput, led::Led, servo::Servo};
 use rppal::gpio::Gpio;
 
 #[derive(Deserialize)]
@@ -15,6 +15,20 @@ pub struct RawDevice {
     pub pin: u8,
     pub pullup: Option<bool>,
     pub input_inverted: Option<bool>,
+    /// Optional JSON settings for device-specific configuration
+    /// Example for system device:
+    /// ```json
+    /// {
+    ///   "device": "system",
+    ///   "device_type": "system",
+    ///   "pin": 0,
+    ///   "params": {
+    ///     "heartbeat_interval": 5,
+    ///     "log_level": "info"
+    ///   }
+    /// }
+    /// ```
+    pub params: Option<Value>,
 }
 
 /// Device trait used by the runtime to dispatch commands to devices.
@@ -52,6 +66,11 @@ pub fn create_gpio_devices(devices: &Vec<RawDevice>, gpio: &Gpio) -> Result<Devi
                 let boxed: Box<dyn Device + Send + Sync> = Box::new(blue_esc);
                 map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
             }
+            "basic_pwm" => {
+                let basic_pwm = BasicPWM::new(pin.into_output());
+                let boxed: Box<dyn Device + Send + Sync> = Box::new(basic_pwm);
+                map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
+            }
             "digital_input" => match d.pullup {
                 Some(is_pullup) => {
                     if is_pullup {
@@ -72,6 +91,9 @@ pub fn create_gpio_devices(devices: &Vec<RawDevice>, gpio: &Gpio) -> Result<Devi
                     map.insert(d.id.clone(), Arc::new(Mutex::new(boxed)));
                 }
             },
+            "system" => {
+                // System device is created in main.rs with the devices map
+            }
             other => {
                 // unknown device type; skip or log
                 return Err(anyhow::anyhow!(format!("unknown device type: {}", other)));

@@ -2,13 +2,16 @@ use anyhow::bail;
 use axum::{Router, routing::{get, post}, extract::{Extension, WebSocketUpgrade, Json, Path}, response::IntoResponse};
 use axum::extract::ws::{WebSocket, Message};
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::{fs, sync::Arc};
 use tokio::sync::Mutex;
 use futures::{StreamExt, SinkExt};
 
 mod hal;
+mod system;
 use hal::devices::device::{RawDevice, create_gpio_devices, DevicesRegistry};
+use system::System;
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 struct GenericWsMessage {
@@ -26,10 +29,28 @@ async fn main() -> anyhow::Result<()> {
         bail!("ROV: devices.json file does not exist");
     }
     let cfg = std::fs::read_to_string("/home/rov/.config/devices.json").unwrap_or_else(|_| "[]".to_string());
-    let raw_devices: Vec<RawDevice> = serde_json::from_str(&cfg)?;
 
-    let devices_map = create_gpio_devices(&raw_devices, &gpio)?;
-    let devices_registry: DevicesRegistry = Arc::new(Mutex::new(devices_map));
+    let raw_devices: Vec<RawDevice> = serde_json::from_str(&cfg)?;
+    // Always create system device; optionally override with config settings
+    let mut map = create_gpio_devices(&raw_devices, &gpio)?;
+
+    // Create system device (always exists)
+    let sys_settings: Option<&Value> = raw_devices.iter()
+        .find(|d| d.id == "system")
+        .and_then(|d| d.params.as_ref());
+
+    // Pass all devices map to system device for list_devices command
+    let devices_for_system: HashMap<String, String> = raw_devices.iter()
+        .map(|d| (d.id.clone(), d.device_type.clone()))
+        .collect();
+
+    if let Some(settings) = sys_settings {
+        map.insert("system".to_string(), Arc::new(Mutex::new(Box::new(System::with_settings(devices_for_system.clone(), settings)))));
+    } else {
+        map.insert("system".to_string(), Arc::new(Mutex::new(Box::new(System::with_settings(devices_for_system, &serde_json::json!({})) ))));
+    }
+
+    let devices_registry: DevicesRegistry = Arc::new(Mutex::new(map));
 
     // Define websocket route
     let app = Router::new()

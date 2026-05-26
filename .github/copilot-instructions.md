@@ -60,7 +60,7 @@ Files to inspect first
 - .cargo/config.toml and deploy.sh (cross-compile + deploy flow)
 
 AI assistant / other config checks
-- This file (copilot instructions) is present and updated. No CLAUDE.md, AGENTS.md, CONVENTIONS.md, or other known assistant config files were found in the repo root.
+- This file (copilot instructions) is present and updated. A CLAUDE.md exists in the repo root for additional context.
 
 Notes for future Copilot sessions
 - For changes that touch hardware behavior, review src/hal/devices/* and devices.json before editing.

@@ -1,42 +1,19 @@
+
 use anyhow::Result;
 use serde_json::Value;
 use rppal::gpio::OutputPin;
 use crate::hal::devices::device::Device;
 
-pub struct Led {
+pub struct BasicPWM {
     pin: OutputPin,
     is_on: bool,
     pwm_frequency: f64,
     pwm_duty_cycle: f64,
 }
 
-impl Led {
-    pub fn new(pin: OutputPin) -> Led {
-        Led { pin, is_on: false, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
-    }
-
-    pub fn toggle(&mut self) -> Result<bool> {
-        if self.is_on {
-            self.set_pwm(0.0)?;
-            Ok(false)
-        } else {
-            self.set_pwm(1.0)?;
-            Ok(true)
-        }
-    }
-
-    pub fn turn_on(&mut self) -> Result<()> {
-        if !self.is_on {
-            self.set_pwm(1.0)?;
-        }
-        Ok(())
-    }
-
-    pub fn turn_off(&mut self) -> Result<()> {
-        if self.is_on {
-            self.set_pwm(0.0)?;
-        }
-        Ok(())
+impl BasicPWM {
+    pub fn new(pin: OutputPin) -> BasicPWM {
+        BasicPWM { pin, is_on: false, pwm_frequency: 0.0, pwm_duty_cycle: 0.0 }
     }
 
     pub fn set_pwm_frequency(&mut self, frequency: f64, duty_cycle: f64) -> Result<()>{
@@ -72,7 +49,7 @@ impl Led {
     }
 }
 
-impl Device for Led {
+impl Device for BasicPWM {
     fn handle(&mut self, cmd: &str, params: &Value) -> Result<Value, String> {
         match cmd {
             "pwm" => {
@@ -107,25 +84,17 @@ impl Device for Led {
                     self.stop_pwm().map_err(|e| format!("failed to stop pwm: {}", e))?;
                     Ok(serde_json::json!({"status":"stopped"}))
                 }
-            }
-            "turn_on" => {
-                self.turn_on().map_err(|e| format!("failed to turn on led: {}", e))?;
-                Ok(serde_json::json!({"status":"Ok", "is_on": true}))
-            }
-            "turn_off" => {
-                self.turn_off().map_err(|e| format!("failed to turn off led: {}", e))?;
-                Ok(serde_json::json!({"status":"Ok", "is_on": false}))
-            }
-            "toggle" => {
-                let is_on = self.toggle().map_err(|e| format!("failed to toggle led: {}", e))?;
-                Ok(serde_json::json!({"status":"Ok", "is_on": is_on}))
+            } 
+            "stop" => {
+                self.stop_pwm().map_err(|e| format!("failed to stop pwm: {e}"))?;
+                Ok(serde_json::json!({"status":"Ok", "stopped": true}))
             }
             "get_state" => {
                 let frequency = &self.pwm_frequency;
                 let duty_cycle = &self.pwm_duty_cycle;
                 Ok(serde_json::json!({"status":"Ok", "frequency":frequency, "duty_cycle":duty_cycle}))
             }
-            other => Err(format!("unknown command for Led: {}", other)),
+            other => Err(format!("unknown command for BasicPWM: {}", other)),
         }
     }
 }
